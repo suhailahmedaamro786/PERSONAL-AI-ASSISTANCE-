@@ -1,0 +1,12 @@
+{
+  "disabledMcpjsonServers": [
+    "supabase",
+    "github",
+    "vercel"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)"
+    ]
+  }
+}
