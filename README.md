@@ -1,32 +1,50 @@
-# React + TypeScript + Vite
+# 🧠 Suhail AI — Personal AI Assistant
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A personal AI-powered productivity dashboard — your career coach, task manager, learning planner, job tracker, portfolio reviewer, and email-to-task automation in one place.
 
-Currently, two official plugins are available:
+Built with React 19 + TypeScript + Vite + Tailwind, backed by **Supabase** (real JWT auth + per-user data with Row Level Security).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ✨ Features
 
-## React Compiler
+- 🤖 **AI Coach** — chat-based assistant powered by Google Gemini (with an offline rule-based fallback). It can plan your day, recommend jobs, analyze your CV, and suggest learning paths.
+- ✅ **Tasks** — real, per-user tasks persisted to Supabase. Create, drag-to-reorder, filter by Today / Upcoming / Overdue, track estimated vs actual time.
+- 📧 **Email → Task automation** — connect your Gmail, and the AI scans your inbox, extracts actionable items (deadlines, interviews, workshops), and turns them into tasks automatically.
+- 🧭 **Career hub** — career readiness score, skill-gap analysis, and an actionable checklist.
+- 💼 **Jobs** — job matches with honest skill-overlap %, save/apply/offer status tracking.
+- 📚 **Learning** — roadmap, weekly hours, and study streak.
+- 🎓 **Classes & Workshops** — weekly schedule and local workshop discovery.
+- 📊 **Portfolio** — project showcase with scoring and improvement tips.
+- 🔐 **Secure auth** — Supabase Auth with JWT sessions and email confirmation; every user's data is isolated via Row Level Security.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 Getting Started
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### Environment variables (`.env`)
+
+```
+VITE_SUPABASE_URL=your-supabase-project-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-or-publishable-key
+VITE_GEMINI_API_KEY=your-google-gemini-api-key
+VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id
+VITE_GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+```
+
+> ⚠️ `.env` is git-ignored — never commit secrets. Set them as environment variables in your hosting (e.g. Vercel) instead.
+
+### Database
+
+Create the `profiles` and `tasks` tables with Row Level Security using the migration in [`supabase/migrations/0001_init.sql`](./supabase/migrations/0001_init.sql) (run in the Supabase SQL Editor).
+
+## 🧰 Tech
+
+React 19 · TypeScript · Vite · Tailwind CSS · Zustand · Radix UI · Framer Motion · Recharts · Supabase · Google Gemini · Gmail API
+
+## 🛠 Scripts
+
+- `npm run dev` — local dev server
+- `npm run build` — type-check + production build
+- `npm run lint` — oxlint
