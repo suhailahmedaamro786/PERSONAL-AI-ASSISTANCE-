@@ -95,6 +95,36 @@ async function fetchProfileRow(uid: string): Promise<ProfileRow | null> {
   return created as ProfileRow;
 }
 
+/** Map cryptic Supabase auth errors to a clear, human-readable message. */
+function friendlyAuthError(raw: string): string {
+  const m = (raw || '').toLowerCase();
+  if (m.includes('invalid login credentials') || m.includes('invalid password') || m.includes('email not valid')) {
+    return 'Incorrect email or password. Please try again.';
+  }
+  if (m.includes('email not confirmed') || m.includes('confirm your email')) {
+    return 'Please confirm your email first. Check your inbox for the confirmation link.';
+  }
+  if (m.includes('user already registered') || m.includes('already registered') || m.includes('already been registered')) {
+    return 'An account with this email already exists. Try signing in instead.';
+  }
+  if (m.includes('rate limit') || m.includes('over daily request limit') || m.includes('429') || m.includes('too many requests')) {
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  }
+  if (m.includes('password should be at least') || m.includes('6 characters')) {
+    return 'Password must be at least 6 characters.';
+  }
+  if (m.includes('email provider is not enabled') || m.includes('no email provider') || m.includes('smtp')) {
+    return 'Could not send the confirmation email (SMTP not configured on the project).';
+  }
+  if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('network')) {
+    return 'Network error. Check your connection and try again.';
+  }
+  if (m.includes('user not found') || m.includes('no user')) {
+    return 'No account found with this email. Try signing up instead.';
+  }
+  return raw || 'Something went wrong. Please try again.';
+}
+
 export const useAuthStore = create<AuthState>((set, get) => {
   // Keep the store in sync with the Supabase session lifecycle.
   const { data: sub } = getSupabase().auth.onAuthStateChange(async (event) => {
@@ -131,7 +161,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ loginError: null });
       const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
       if (error || !data.session) {
-        set({ loginError: error?.message || 'Login failed. Please try again.' });
+        set({ loginError: friendlyAuthError(error?.message || 'Login failed. Please try again.') });
         return false;
       }
       const uid = data.session.user.id;
@@ -147,15 +177,35 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     signup: async (email, name, password) => {
       set({ signupError: null });
-      const { error } = await getSupabase().auth.signUp({
+      const { data, error } = await getSupabase().auth.signUp({
         email,
         password,
         options: { data: { name }, emailRedirectTo: window.location.origin },
       });
       if (error) {
-        set({ signupError: error.message });
+        set({ signupError: friendlyAuthError(error.message) });
         return false;
       }
+
+      // If a session was returned, email confirmation is disabled -> sign in immediately.
+      const session = data?.session;
+      if (session) {
+        const uid = session.user.id;
+        try {
+          const row = await fetchProfileRow(uid);
+          set({
+            user: row ? toAuthUser(row) : null,
+            isAuthenticated: !!row,
+            isAuthModalOpen: false,
+            signupError: null,
+          });
+          return !!row;
+        } catch {
+          set({ signupError: 'Account created, but could not load your profile. Try signing in.' });
+          return false;
+        }
+      }
+
       // Email confirmation is required — the account is created but the session
       // starts after the user clicks the confirmation link.
       set({ isAuthModalOpen: false, signupError: null });
