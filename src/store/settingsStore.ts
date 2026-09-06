@@ -69,13 +69,9 @@ function loadNotifPrefs(): NotificationPrefs {
 export const useSettingsStore = create<SettingsState>((set) => ({
   geminiApiKey: (() => {
     try {
-      return (
-        localStorage.getItem(STORAGE_KEY_GEMINI) ||
-        (import.meta.env.VITE_GEMINI_API_KEY as string) ||
-        ''
-      );
+      return localStorage.getItem(STORAGE_KEY_GEMINI) || '';
     } catch {
-      return (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+      return '';
     }
   })(),
   useLiveAI: (() => {
@@ -137,7 +133,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
 
   getGoogleClientId: () => (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '',
-  getGoogleClientSecret: () => (import.meta.env.VITE_GOOGLE_CLIENT_SECRET as string) || '',
+  // The Google client secret lives only server-side (see /api/google-token).
+  // It is intentionally never exposed to the browser.
+  getGoogleClientSecret: () => '',
   getGoogleRedirectUri: () =>
     (import.meta.env.VITE_GOOGLE_REDIRECT_URI as string) ||
     `${window.location.origin}/auth/callback`,

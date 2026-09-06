@@ -63,42 +63,37 @@ If asked about today's tasks or plans, provide clear actionable steps.`;
     },
   };
 
-  // Primary model with fallback
-  const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
-  let lastError = null;
+  // Call the serverless proxy (/api/gemini) which holds the API key server-side,
+  // so the key is never shipped to the browser. A user-supplied key (from
+  // Settings) is passed along as an optional override; otherwise the server key
+  // is used.
+  const res = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...payload,
+      model: 'gemini-1.5-flash',
+      ...(apiKey ? { apiKey } : {}),
+    }),
+  });
 
-  for (const model of models) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          return text.trim();
-        }
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        lastError = new Error(errData?.error?.message || `API error (${res.status})`);
-      }
-    } catch (e: unknown) {
-      lastError = e instanceof Error ? e : new Error(String(e));
-    }
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData?.error || `AI API error (${res.status})`);
   }
 
-  throw lastError || new Error('Failed to fetch response from Gemini API');
+  const data = await res.json();
+  const text = data?.text;
+  if (!text) throw new Error('No response from AI');
+  return text.trim();
 }
 
 export async function askAI(q: string): Promise<AIResult> {
   const { geminiApiKey, useLiveAI } = useSettingsStore.getState();
 
-  // If live AI is enabled and we have an API key, call Gemini API
-  if (useLiveAI && geminiApiKey && geminiApiKey.trim().length > 10) {
+  // If live AI is enabled, try the serverless proxy (which holds the API key
+  // server-side). Falls back to the offline engine below on any failure.
+  if (useLiveAI) {
     try {
       const liveReply = await callGeminiAPI(q, geminiApiKey.trim());
       const intent = detectIntent(q);

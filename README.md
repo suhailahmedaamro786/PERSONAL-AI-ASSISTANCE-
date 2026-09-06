@@ -23,17 +23,28 @@ npm install
 npm run dev
 ```
 
-### Environment variables (`.env`)
+### Environment variables
+
+Client variables go in `.env` (anything with a `VITE_` prefix is inlined into the
+browser bundle, so only PUBLIC values belong here):
 
 ```
 VITE_SUPABASE_URL=your-supabase-project-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-or-publishable-key
-VITE_GEMINI_API_KEY=your-google-gemini-api-key
-VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id
-VITE_GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+VITE_SUPABASE_ANON_KEY=sb_publishable_your_publishable_key
+VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id     # public by design
 ```
 
-> ⚠️ `.env` is git-ignored — never commit secrets. Set them as environment variables in your hosting (e.g. Vercel) instead.
+Server-only secrets are read by the `/api` serverless functions (Vercel). Set these
+in your hosting environment **without** a `VITE_` prefix so they never reach the client:
+
+```
+GEMINI_API_KEY=your-gemini-api-key             # /api/gemini
+GOOGLE_CLIENT_ID=your-google-oauth-client-id   # /api/google-token
+GOOGLE_CLIENT_SECRET=your-oauth-client-secret  # /api/google-token
+```
+
+> ⚠️ `.env` is git-ignored — never commit secrets. Anything with `VITE_` ships to the
+> browser; anything secret must be server-side only.
 
 ### Database
 

@@ -61,8 +61,8 @@ export async function extractTasksFromEmails(
     return [];
   }
 
-  // 4. Use Gemini AI to extract tasks from all collected emails.
-  if (geminiApiKey && geminiApiKey.trim().length > 10) {
+  // 4. Use Gemini AI (via serverless proxy; key is held server-side) to extract tasks.
+  {
     try {
       const emailText = emailsToScan
         .map((e) => `[Email ${e.id}]\nSubject: ${e.subject}\nFrom: ${e.from}\nBody:\n${e.body?.slice(0, 2000)}`)
@@ -91,8 +91,7 @@ Each item:
 Emails:
 ${emailText}`;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey.trim()}`;
-      const res = await fetch(url, {
+      const res = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,12 +100,14 @@ ${emailText}`;
             temperature: 0.2,
             responseMimeType: 'application/json',
           },
+          model: 'gemini-1.5-flash',
+          apiKey: geminiApiKey.trim() || undefined,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        const jsonText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const jsonText = data?.text;
         if (jsonText) {
           const cleaned = jsonText.replace(/```json|```/g, '').trim();
           const parsed = JSON.parse(cleaned);

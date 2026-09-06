@@ -1,7 +1,6 @@
 import { useSettingsStore, type GmailTokens } from '../store/settingsStore';
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
-const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 const SCOPES = [
@@ -40,34 +39,27 @@ export function buildAuthUrl(): string {
 
 /**
  * Exchange the authorization code for access + refresh tokens.
- * NOTE: done client-side for this project as requested; for production this
- * exchange MUST move to a backend to avoid exposing the client secret.
+ * Done via the serverless proxy (/api/google-token) so the Google client
+ * secret is never shipped to the browser.
  */
 export async function exchangeCodeForTokens(code: string): Promise<GmailTokens> {
-  const clientId = useSettingsStore.getState().getGoogleClientId();
-  const clientSecret = useSettingsStore.getState().getGoogleClientSecret();
   const redirectUri = useSettingsStore.getState().getGoogleRedirectUri();
 
-  const body = new URLSearchParams({
-    code,
-    client_id: clientId,
-    client_secret: clientSecret,
-    redirect_uri: redirectUri,
-    grant_type: 'authorization_code',
-  });
-
-  const res = await fetch(TOKEN_ENDPOINT, {
+  const res = await fetch('/api/google-token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+    }),
   });
 
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error_description || err?.error || 'Token exchange failed');
+    throw new Error(data?.error || 'Token exchange failed');
   }
 
-  const data = await res.json();
   return {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
@@ -75,27 +67,22 @@ export async function exchangeCodeForTokens(code: string): Promise<GmailTokens> 
   };
 }
 
-/** Refresh an expired access token using the refresh token. */
+/** Refresh an expired access token using the refresh token (via serverless proxy). */
 export async function refreshAccessToken(refreshToken: string): Promise<GmailTokens> {
-  const clientId = useSettingsStore.getState().getGoogleClientId();
-  const clientSecret = useSettingsStore.getState().getGoogleClientSecret();
-
-  const body = new URLSearchParams({
-    refresh_token: refreshToken,
-    client_id: clientId,
-    client_secret: clientSecret,
-    grant_type: 'refresh_token',
-  });
-
-  const res = await fetch(TOKEN_ENDPOINT, {
+  const res = await fetch('/api/google-token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
   });
 
-  if (!res.ok) throw new Error('Token refresh failed');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error || 'Token refresh failed');
+  }
 
-  const data = await res.json();
   return {
     access_token: data.access_token,
     refresh_token: refreshToken,
@@ -105,14 +92,9 @@ export async function refreshAccessToken(refreshToken: string): Promise<GmailTok
 
 /** Ensure we have a valid (non-expired) access token, refreshing if needed. */
 async function ensureValidToken(): Promise<string> {
-  const { gmailTokens, setGmailTokens, getGoogleClientId, getGoogleClientSecret } =
-    useSettingsStore.getState();
+  const { gmailTokens, setGmailTokens } = useSettingsStore.getState();
 
   if (!gmailTokens?.access_token) throw new Error('Not connected to Gmail');
-
-  if (!getGoogleClientId() || !getGoogleClientSecret()) {
-    throw new Error('Google OAuth credentials not configured');
-  }
 
   if (gmailTokens.expiry <= Date.now() + 60000) {
     if (!gmailTokens.refresh_token) {

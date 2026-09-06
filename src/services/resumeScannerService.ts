@@ -45,8 +45,8 @@ export async function parseResumeWithAI(
 ): Promise<ParsedResumeData> {
   const { geminiApiKey } = useSettingsStore.getState();
 
-  // If we have an active Gemini API key, use AI to parse
-  if (geminiApiKey && geminiApiKey.trim().length > 10) {
+  // Use AI to parse via the serverless proxy (key is held server-side).
+  {
     try {
       const prompt = `You are an expert AI Resume and Portfolio Parser.
 Extract detailed structured profile information from this resume document/text, including any portfolio links, QR code URLs, GitHub, LinkedIn, skills, education, and projects.
@@ -109,8 +109,7 @@ Respond ONLY with a valid raw JSON object conforming strictly to this schema:
         });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey.trim()}`;
-      const res = await fetch(url, {
+      const res = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -119,12 +118,14 @@ Respond ONLY with a valid raw JSON object conforming strictly to this schema:
             temperature: 0.2,
             responseMimeType: 'application/json',
           },
+          model: 'gemini-1.5-flash',
+          apiKey: geminiApiKey.trim() || undefined,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        const jsonText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const jsonText = data?.text;
         if (jsonText) {
           const parsed = JSON.parse(jsonText);
           return normalizeResumeData(parsed);
